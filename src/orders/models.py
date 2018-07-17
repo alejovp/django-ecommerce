@@ -14,6 +14,24 @@ ORDER_STATUS_CHOICES = (
 )
 
 # Create your models here.
+
+class OrderManager(models.Manager):
+    def new_or_get_order(self, billing_profile, cart_obj):
+        qs = self.get_queryset().filter(
+                cart=cart_obj, 
+                billing_profile=billing_profile, 
+                active=True)
+        if qs.count() == 1:
+            created = False
+            obj = qs.first()
+        else:
+            obj = self.model.objects.create(
+                    cart=cart_obj, 
+                    billing_profile=billing_profile)
+            created = True
+        return obj, created
+
+
 class Order(models.Model):
     billing_profile = models.ForeignKey(BillingProfile, null=True, blank=True)
     # id = pk
@@ -28,6 +46,8 @@ class Order(models.Model):
 
     def __str__(self):
         return self.order_id
+    
+    objects = OrderManager()
 
     def update_total(self):
         cart_total = self.cart.total
@@ -61,5 +81,8 @@ post_save.connect(post_save_cart_total, sender=Cart)
 def post_save_order(sender, instance, created, *args, **kwargs):
     if created:
         instance.update_total()
+    qs = Order.objects.filter(cart=instance.cart).exclude(billing_profile=instance.billing_profile)
+    if qs.exists():
+        qs.update(active=False)
 
 post_save.connect(post_save_order, sender=Order)
