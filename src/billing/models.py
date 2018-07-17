@@ -8,7 +8,8 @@ User = settings.AUTH_USER_MODEL
 
 class BillingProfile(models.Model):
     # In order to allow any user registered / guest we set null and blank parameters
-    user = models.ForeignKey(User, unique=True, null=True, blank=True)
+    # user = models.ForeignKey(User, unique=True, null=True, blank=True)
+    user = models.OneToOneField(User, null=True, blank=True)
     email = models.EmailField()
     active = models.BooleanField(default=True)
     update = models.DateTimeField(auto_now=True)
@@ -20,7 +21,7 @@ class BillingProfile(models.Model):
 
 
 def user_created_receiver(sender, instance, created, *args, **kwargs):
-    if created:
-        BillingProfile.objects.get_or_create(user=instance)
+    if created and instance.email:
+        BillingProfile.objects.get_or_create(user=instance, email=instance.email)
 
 post_save.connect(user_created_receiver, sender=User)

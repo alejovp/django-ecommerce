@@ -1,8 +1,11 @@
 from django.shortcuts import render, redirect
 
+from accounts.forms import LoginForm, GuestForm
+from accounts.models import GuestEmail
+from billing.models import BillingProfile
+from orders.models import Order
 from products.models import Product
 from .models import Cart
-from orders.models import Order
 
 # Create your views here.
 
@@ -36,6 +39,7 @@ def cart_home(request):
     # cart_obj.save()
     return render(request, 'carts/home.html', {'cart': cart_obj})
 
+
 def cart_update(request):
     product_id = request.POST.get('product_id')
     if product_id is not None:
@@ -53,6 +57,7 @@ def cart_update(request):
     # return redirect(product_obj.get_absolute_url())
     return redirect('cart:home')
 
+
 def checkout_home(request):
     cart_obj, cart_created = Cart.objects.new_or_get_cart(request)
     order_obj = None
@@ -60,5 +65,27 @@ def checkout_home(request):
         return redirect('cart:home')
     else:
         order_obj, new_order_obj = Order.objects.get_or_create(cart=cart_obj)
-    return render(request, 'carts/checkout.html', {'object': order_obj})
+    user = request.user
+    billing_profile = None
+    login_form = LoginForm()
+    guest_form = GuestForm()
+    guest_email_id = request.session.get('guest_email_id')
+    if user.is_authenticated():
+        billing_profile, billing_profile_created = BillingProfile.objects.get_or_create(
+            user=user, email=user.email)
+    elif guest_email_id is not None:
+        guest_email_obj = GuestEmail.objects.get(id=guest_email_id)
+        billing_profile, billing_guest_profile_created = BillingProfile.objects.get_or_create(
+            email=guest_email_obj.email)
+    else:
+        pass
+
+    context = {
+        'object': order_obj,
+        'billing_profile': billing_profile,
+        'login_form': login_form,
+        'guest_form': guest_form
+    }
+
+    return render(request, 'carts/checkout.html', context)
 
